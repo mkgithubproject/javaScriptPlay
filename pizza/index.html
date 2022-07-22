@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <h1>Order a Pizza</h1>
+    <form>
+        <label for="size_of_pizza" id="pizzaSize">What Size Do You Want: </label>
+        <select name="pizza" id="size_of_pizza">
+            <option value=0></option>
+            <option value=10>SMALL- $10.00</option>
+            <option value=12.50>MEDIUM- $12.50</option>
+            <option value=15>LARGE- $15.00</option>
+        </select>
+        <br>
+        <br>
+        <div>
+            <span style="display:block;">What Toppings Do You Want: </span>
+            <input type="checkbox" id="topping1" name="topping" value=2>
+            <label for="topping1"> Extra Cheese (add $2.00)</label><br>
+            <input type="checkbox" id="topping2" name="topping" value=3>
+            <label for="topping2">Extra spicy (add $3.00)</label><br>
+            <input type="checkbox" id="topping3" name="topping" value=3>
+            <label for="topping3">Green Peppers (add $3.00)</label><br>
+            <input type="checkbox" id="topping4" name="topping" value=5>
+            <label for="topping4">Pepperoni (add $5.00)</label><br>
+            <input type="checkbox" id="topping5" name="topping" value=4>
+            <label for="topping5">Mushrooms (add $4.00)</label><br>
+            <input type="checkbox" id="topping6" name="topping" value=6>
+            <label for="topping6">Black olives (add $6.00)</label><br>
+        </div>
+        <br>
+        <div id="deliveryCheck">
+            <span style="display:block;">Pickup or Delivery?</span>
+            <input type="radio" id="pickup1" name="pickup" value=0>
+            <label for="pickup1"> Pickup</label><br>
+            <input type="radio" id="pickup2" name="pickup" value=3>
+            <label for="pickup2"> Delivery(add $3.00)</label><br>
+        </div>
+        <br>
+        <p>Note: 11.25% sales tax will be added to the cost of your pizza.</p>
+        <br>
+        <input type="submit" value="Calculate Order Total">
+        <br>
+        <p id="orderTotal"></p>
+    </form>
+    <script src="script.js"></script>
+</body>
+
+</html>
