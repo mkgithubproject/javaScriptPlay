@@ -1,0 +1,265 @@
+exports.getSalonsData2 = async (req, res) => {
+  try {
+    let { startDate, endDate, page, pageLimit } = req.body
+    page = Number(page) || 0
+    pageLimit = Number(pageLimit) || 10
+
+
+    if (startDate && endDate) {
+      startDate = helperService.getDayStart(startDate);
+      endDate = helperService.getDayEnd(endDate);
+    }
+    else{
+      let { firstDayOfMonth, lastDayOfMonth } = helperService.getMonthStartEnd(new Date())
+      startDate = firstDayOfMonth,
+        endDate = lastDayOfMonth
+
+    }
+    console.time('s')
+    let salonsData = await Salon.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $gt: startDate,
+            $lt: endDate
+          },
+        },
+      },
+      {
+        $project:
+        {
+          salonName: "$name",
+          salonPhoneNumber: "$phoneNumber",
+          createdAt: 1,
+          ownerId: 1,
+        },
+      },
+      {
+        $lookup:
+        {
+          from: "sellercrmusers",
+          localField: "ownerId",
+          foreignField: "_id",
+          as: "owner",
+        },
+      },
+      {
+        $lookup:
+        {
+          from: "appointments",
+          localField: "_id",
+          foreignField: "salonId",
+          as: "appointments",
+        },
+        // $lookup: {
+        //   from: "appointments",
+        //   let: {
+        //     salonId: "$_id",
+        //   },
+        //   pipeline: [
+        //     {
+        //       $match: {
+        //         $expr: {
+        //           $eq: [
+        //             "$$salonId",
+        //             "$salonId",
+        //           ],
+        //         },
+        //       },
+        //     },
+        //     {
+        //       $project:{
+        //         _id:1,
+        //       }
+        //     }
+        //   ],
+        //   as: "appointments",
+        // }
+      },
+      {
+        $lookup: {
+          from: "sellercrmusers",
+          let: {
+            salonId: "$_id",
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $in: [
+                        "$$salonId",
+                        {
+                          $ifNull: ["$salonIds", []],
+                        },
+                      ],
+                    },
+                    {
+                      $in: ["$userType", [3, 4]],
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $project:{
+                _id:1,
+              }
+            }
+          ],
+          as: "totalEmp",
+        },
+      },
+      {
+        $lookup: {
+          from: "customers",
+          let: {
+            salonId: "$_id",
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: [
+                    "$$salonId",
+                    {
+                      $ifNull: ["$salonIds", []],
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $project:{
+                _id:1,
+              }
+            }
+          ],
+          as: "totalCus",
+        },
+      },
+      // {
+      //   $lookup: {
+      //     from: "services",
+      //     let: {
+      //       salonId: "$_id",
+      //     },
+      //     pipeline: [
+      //       {
+      //         $match: {
+      //           $expr: {
+      //             $in: [
+      //               "$$salonId",
+      //               {
+      //                 $ifNull: ["$salonIds", []],
+      //               },
+      //             ],
+      //           },
+      //         },
+      //       },
+      //     ],
+      //     as: "totalServices",
+      //   },
+      // },
+      {
+        $project:
+        {
+          totalEmployee: {
+            $size: "$totalEmp",
+          },
+          salonName: 1,
+          createdAt: 1,
+          salonPhoneNumber: 1,
+          ownerName: {
+            $arrayElemAt: ["$owner.name", 0],
+          },
+          ownerPhoneNumber: {
+            $arrayElemAt: ["$owner.userName", 0],
+          },
+          totalAppointments: {
+            $size: "$appointments",
+          },
+          totalCustomers: {
+            $size: "$totalCus",
+          },
+          // totalServices: {
+          //   $size: "$totalServices",
+          // },
+        },
+      },
+      {
+        $sort:
+        {
+          createdAt: -1,
+        },
+      },
+      {
+        $facet:
+        {
+          data: [
+            {
+              $skip: page * pageLimit
+            },
+            {
+              $limit: pageLimit,
+            },
+          ],
+          metaData: [
+            {
+              $count: "totalDocuments",
+            },
+            {
+              $project: {
+                totalDocuments: 1,
+                pages: {
+                  $ceil: {
+                    $divide: [
+                      "$totalDocuments",
+                      pageLimit,
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+    // console.time('s')
+    let salonIds = await Salon.find({
+      createdAt: {
+        $gt: startDate,
+        $lt: endDate
+      },
+    }, { _id: 1 });
+    salonIds = salonIds.map( salon => salon._id );
+    let services = await Service.find({ salonIds: { $in: salonIds } }, { _id: 1, salonIds: 1} );
+    let map =  new Map();
+    for(let service of services){
+      let salonId = service.salonIds[0].toString();
+      if(!salonId) continue;
+      if(map.has(salonId))
+        map.set(salonId, map.get(salonId) + 1);
+      else
+        map.set(salonId, 1);
+    } 
+    
+    let data=[];
+    let metaData=salonsData[0].metaData;
+    for(let salonData of salonsData[0].data){
+      let salonId = salonData._id?.toString();
+      if(map.has(salonId)){
+        salonData.totalServices1 = map.get(salonId);
+      }else{
+        salonData.totalServices1 = 0;
+      }
+      data.push({ ...salonData});
+    }
+    console.timeEnd('s')
+    return res.json(Response.parse(false, { data, metaData }));
+  } catch (er) {
+    console.log(er)
+    return res.status(500).json(Response.parse(true, "something went wrong"))
+  }
+}
