@@ -1,0 +1,73 @@
+const SellerCrmUsers = require("../models/admin")
+const Services = require("../../models/Service")
+let [salonsData, metaData] = await Promise.all([
+      Salon.find({
+        createdAt: {
+          $gt: startDate,
+          $lt: endDate
+        },
+      }, {
+        salonName: "$name",
+        salonPhoneNumber: "$phoneNumber",
+        createdAt: 1,
+        ownerId: 1,
+      }).sort({createdAt:-1}).skip(page * pageLimit).limit(pageLimit),
+      Salon.countDocuments({
+        createdAt: {
+          $gt: startDate,
+          $lt: endDate
+        },
+      }, {
+        salonName: "$name",
+        salonPhoneNumber: "$phoneNumber",
+        createdAt: 1,
+        ownerId: 1,
+      })
+    ]) 
+
+    metaData = [{
+      totalDocuments:metaData,
+      pages:Math.ceil(metaData/pageLimit)
+    }]
+
+    let op = []
+
+    let mapArr = salonsData.map(async(s)=>{
+      let [
+        owner,
+        appointments,
+        totalEmp,
+        totalCus,
+        totalServices,
+      ] = await Promise.all([
+        SellerCrmUsers.findById(s.ownerId, {name:1, userName:1}),
+        Appointment.countDocuments({salonId:s._id}),
+        SellerCrmUsers.countDocuments({salonId:{$in:s._id}, userType:{$in:[3,4]}, isActive:true}),
+        Customer.countDocuments({salonIds:s._id}),
+        Services.countDocuments({salonIds:s._id})
+      ])
+
+      let obj = {
+        totalEmployee: totalEmp,
+        salonName: s.salonName,
+        createdAt: s.createdAt,
+        salonPhoneNumber: s.salonPhoneNumber,
+        ownerName:owner.name,
+        ownerPhoneNumber:owner.userName,
+        totalAppointments: appointments,
+        totalCustomers:totalCus,
+        totalServices:totalServices,
+      }
+
+      op.push(obj)
+      return
+
+    })
+
+    await Promise.all(mapArr)
+
+    let data = [
+      op,metaData
+    ]
+
+    return res.json(Response.parse(false, data));
